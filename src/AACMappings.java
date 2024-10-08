@@ -1,3 +1,13 @@
+import edu.grinnell.csc207.util.AssociativeArray;
+import edu.grinnell.csc207.util.KeyNotFoundException;
+import edu.grinnell.csc207.util.NullKeyException;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.NoSuchElementException;
+
 /**
  * Creates a set of mappings of an AAC that has two levels,
  * one for categories and then within each category, it has
@@ -6,11 +16,24 @@
  * and updating the set of images that would be shown and handling
  * an interactions.
  * 
- * @author Catie Baker & YOUR NAME HERE
+ * @author Catie Baker
+ * @author David William Stroud
  *
  */
 public class AACMappings implements AACPage {
-	
+	/**
+	 * This is the mapping of category names to AACCategory instances for this mapping.
+	 */
+	private final AssociativeArray<String, AACCategory> categories = new AssociativeArray<String, AACCategory>();
+	/**
+	 * This is the category representing the homepage.
+	 */
+	private final AACCategory homepage = new AACCategory("");
+	/**
+	 * This is the name of the category that is currently selected.
+	 */
+	private String currentCategory = "";
+
 	/**
 	 * Creates a set of mappings for the AAC based on the provided
 	 * file. The file is read in to create categories and fill each
@@ -32,7 +55,35 @@ public class AACMappings implements AACPage {
 	 * @param filename the name of the file that stores the mapping information
 	 */
 	public AACMappings(String filename) {
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(filename));
 
+			AACCategory category = null;
+			String line;
+			while ((line = br.readLine()) != null) {
+				String[] words = line.split(" ");
+
+				String firstPart = words[0];
+				String[] secondPartWords = new String[words.length - 1];
+				System.arraycopy(words, 1, secondPartWords, 0, secondPartWords.length);
+				String secondPart = String.join(" ", secondPartWords);
+
+				if (line.startsWith(">")) {
+					category.addItem(firstPart.substring(1), secondPart);
+				} else {
+					category = new AACCategory(secondPart);
+
+					try {
+						this.categories.set(secondPart, category);
+						this.homepage.addItem(firstPart, secondPart);
+					} catch (NullKeyException err) {
+						// This should never happen, since there is no opportunity for firstPart to be null.
+					}
+				}
+			}
+		} catch (IOException err) {
+			// Nothing we can do, so fail silently.
+		}
 	}
 	
 	/**
@@ -49,8 +100,23 @@ public class AACMappings implements AACPage {
 	 * @throws NoSuchElementException if the image provided is not in the current 
 	 * category
 	 */
-	public String select(String imageLoc) {
-		return null;
+	public String select(String imageLoc) throws NoSuchElementException {
+		try {
+			AACCategory currentCategory = this.categories.get(this.currentCategory);
+			if (currentCategory.hasImage(imageLoc)) {
+				return currentCategory.select(imageLoc);
+			}
+		} catch (KeyNotFoundException err) {
+			// This should never happen, since currentCategoryLocation is always a valid key.
+		}
+
+		if (!this.hasImage(imageLoc)) {
+			throw new NoSuchElementException("No such image location: " + imageLoc);
+		}
+
+		this.currentCategory = this.homepage.select(imageLoc);
+
+		return "";
 	}
 	
 	/**
@@ -59,7 +125,7 @@ public class AACMappings implements AACPage {
 	 * it should return an empty array
 	 */
 	public String[] getImageLocs() {
-		return null;
+		return this.getCurrentCategory().getImageLocs();
 	}
 	
 	/**
@@ -67,7 +133,7 @@ public class AACMappings implements AACPage {
 	 * category
 	 */
 	public void reset() {
-
+		this.currentCategory = "";
 	}
 	
 	
@@ -92,7 +158,36 @@ public class AACMappings implements AACPage {
 	 * AAC mapping to
 	 */
 	public void writeToFile(String filename) {
-		
+		try {
+			FileWriter writer = new FileWriter(filename);
+
+			for (String imageLoc : this.homepage.getImageLocs()) {
+				String name = this.homepage.select(imageLoc);
+
+				writer.append(imageLoc);
+				writer.append(' ');
+				writer.append(name);
+				writer.append('\n');
+
+				try {
+					AACCategory category = this.categories.get(name);
+					for (String itemImageLoc : category.getImageLocs()) {
+						writer.append('>');
+						writer.append(itemImageLoc);
+						writer.append(' ');
+						writer.append(category.select(itemImageLoc));
+						writer.append('\n');
+					}
+				} catch (KeyNotFoundException err) {
+					// This should never happen, so we will fail silently.
+				}
+			}
+
+			writer.flush();
+			writer.close();
+		} catch (IOException err) {
+			// There is nothing we can do, so we must fail silently.
+		}
 	}
 	
 	/**
@@ -102,7 +197,15 @@ public class AACMappings implements AACPage {
 	 * @param text the text associated with the image
 	 */
 	public void addItem(String imageLoc, String text) {
-		
+		AACCategory currentCategory = this.getCurrentCategory();
+		currentCategory.addItem(imageLoc, text);
+		if (this.currentCategory.isEmpty()) {
+			try {
+				this.categories.set(text, new AACCategory(text));
+			} catch (NullKeyException err) {
+				// This should never happen, so we will fail silently.
+			}
+		}
 	}
 
 
@@ -112,7 +215,7 @@ public class AACMappings implements AACPage {
 	 * on the default category
 	 */
 	public String getCategory() {
-		return null;
+		return this.currentCategory;
 	}
 
 
@@ -124,6 +227,25 @@ public class AACMappings implements AACPage {
 	 * can be displayed, false otherwise
 	 */
 	public boolean hasImage(String imageLoc) {
-		return false;
+		return this.getCurrentCategory().hasImage(imageLoc);
+	}
+
+	/**
+	 * This method returns the currently selected category.
+	 * @return The currently selected category.
+	 */
+	private AACCategory getCurrentCategory() {
+		if (this.currentCategory.isEmpty()) {
+			return this.homepage;
+		}
+
+		try {
+			return this.categories.get(this.currentCategory);
+		} catch (KeyNotFoundException err) {
+			// This should never happen, since currentCategoryLocation is always a valid key.
+			// But, we have to return something, so we will return the homepage.
+
+			return this.homepage;
+		}
 	}
 }

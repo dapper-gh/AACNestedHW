@@ -1,21 +1,32 @@
 import java.util.NoSuchElementException;
 
+import edu.grinnell.csc207.util.AssociativeArray;
+import edu.grinnell.csc207.util.NullKeyException;
+
 /**
  * Represents the mappings for a single category of items that should
  * be displayed
  * 
- * @author Catie Baker & YOUR NAME HERE
+ * @author Catie Baker
+ * @author David William Stroud
  *
  */
 public class AACCategory implements AACPage {
-
+	/**
+	 * This is the name of this category.
+	 */
+	private String name;
+	/**
+	 * This is the mapping of image locations in this category to text.
+	 */
+	private AssociativeArray<String, String> imageLocs = new AssociativeArray<>();
 	
 	/**
 	 * Creates a new empty category with the given name
-	 * @param name the name of the category
+	 * @param name1 the name of the category
 	 */
-	public AACCategory(String name) {
-
+	public AACCategory(String name1) {
+		this.name = name1;
 	}
 	
 	/**
@@ -24,7 +35,11 @@ public class AACCategory implements AACPage {
 	 * @param text the text that image should speak
 	 */
 	public void addItem(String imageLoc, String text) {
-
+		try {
+			imageLocs.set(imageLoc, text);
+		} catch (NullKeyException err) {
+			// This should never happen, so we will fail silently.
+		}
 	}
 
 	/**
@@ -33,7 +48,7 @@ public class AACCategory implements AACPage {
 	 * it should return an empty array
 	 */
 	public String[] getImageLocs() {
-		return null;
+		return this.imageLocs.getKeys("");
 	}
 
 	/**
@@ -41,7 +56,7 @@ public class AACCategory implements AACPage {
 	 * @return the name of the category
 	 */
 	public String getCategory() {
-		return "";
+		return this.name;
 	}
 
 	/**
@@ -51,8 +66,12 @@ public class AACCategory implements AACPage {
 	 * @throws NoSuchElementException if the image provided is not in the current
 	 * 		   category
 	 */
-	public String select(String imageLoc) {
-		return "";
+	public String select(String imageLoc) throws NoSuchElementException {
+		try {
+			return this.imageLocs.get(imageLoc);
+		} catch (Exception err) {
+			throw new NoSuchElementException("No such image: " + imageLoc);
+		}
 	}
 
 	/**
@@ -61,6 +80,6 @@ public class AACCategory implements AACPage {
 	 * @return true if it is in the category, false otherwise
 	 */
 	public boolean hasImage(String imageLoc) {
-		return false;
+		return this.imageLocs.hasKey(imageLoc);
 	}
 }

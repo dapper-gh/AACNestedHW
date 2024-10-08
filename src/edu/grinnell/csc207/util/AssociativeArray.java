@@ -193,6 +193,24 @@ public class AssociativeArray<K, V> {
   } // remove(K)
 
   /**
+   * This method returns all of the keys present in this associative array, as an array.
+   *
+   * @param arrayBasis This is any value of the key type, used to construct the array.
+   *
+   * @return All of the keys in this associative array.
+   */
+  @SuppressWarnings({ "unchecked" })
+  public K[] getKeys(K arrayBasis) {
+    K[] keys = (K[]) newInstance(arrayBasis.getClass(), this.size);
+
+    for (int i = 0; i < this.size; i++) {
+      keys[i] = this.pairs[i].key;
+    } // for
+
+    return keys;
+  } // getKeys()
+
+  /**
    * Determine how many key/value pairs are in the associative array.
    *
    * @return The number of key/value pairs there are in this associative array.
